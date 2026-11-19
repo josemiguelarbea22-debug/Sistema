@@ -351,6 +351,7 @@ form.m input{font:inherit;font-family:var(--f-mono);padding:8px;background:var(-
       <div class="win-head"><span class="sys-label">Cuenta de Google</span></div>
       <p class="note" id="gsStatus" style="margin:0 0 10px">Todavía no conectas tu cuenta. Tu progreso se guarda en este teléfono.</p>
       <button class="btn" id="gsBtn" type="button">Entrar con Google</button>
+      <p class="note" style="margin:8px 0 0;opacity:.7">Versión de la app: 5</p>
       <p class="note" style="margin:10px 0 0">La app solo puede editar tus eventos del calendario y una carpeta oculta de Drive solo para ella. No ve tus correos ni tus otros archivos. Puedes quitar el permiso cuando quieras en tu cuenta de Google, en Seguridad, Conexiones con apps de terceros.</p>
     </section>
     <section class="win">
@@ -1220,7 +1221,9 @@ function gsInit(){try{const t=JSON.parse(localStorage.getItem("gym-tok")||"null"
   gsTakeRedirect();
   $("storeNote").textContent=GCFG.clientId?"":"Guardando en este teléfono.";
   ["gsBtn","gsBarBtn"].forEach(id=>{const b=$(id);if(b)b.onclick=gsLogin});gsBtn();if(GS.token)fullSync()}
-if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+if("serviceWorker" in navigator){let reloaded=false;const hadCtl=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(hadCtl&&!reloaded){reloaded=true;location.reload()}});
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{r.update();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update()})}).catch(()=>{}))}
 function seedIfEmpty(){let has=false;try{has=!!localStorage.getItem("gym-sesiones")}catch(e){}if(!has&&!lsUpd()){applyState(SEED);setUpd(1)}}
 
 const fallback=setTimeout(()=>{if(!db)useLocal()},10000);
