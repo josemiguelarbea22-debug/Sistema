@@ -351,7 +351,7 @@ form.m input{font:inherit;font-family:var(--f-mono);padding:8px;background:var(-
       <div class="win-head"><span class="sys-label">Cuenta de Google</span></div>
       <p class="note" id="gsStatus" style="margin:0 0 10px">Todavía no conectas tu cuenta. Tu progreso se guarda en este teléfono.</p>
       <button class="btn" id="gsBtn" type="button">Entrar con Google</button>
-      <p class="note" style="margin:8px 0 0;opacity:.7">Versión de la app: 6</p>
+      <p class="note" style="margin:8px 0 0;opacity:.7">Versión de la app: 7</p>
       <p class="note" style="margin:10px 0 0">La app solo puede editar tus eventos del calendario y una carpeta oculta de Drive solo para ella. No ve tus correos ni tus otros archivos. Puedes quitar el permiso cuando quieras en tu cuenta de Google, en Seguridad, Conexiones con apps de terceros.</p>
     </section>
     <section class="win">
@@ -811,6 +811,52 @@ function artSrc(k,i){const key=k+i;if(ART_CACHE[key])return ART_CACHE[key];const
 const MOVES={S0:["slash",.45,.12],S1:["bash",.55,.4],S2:["thrust",.15,.16],S3:["howl",.42,.2],S4:["slam",.3,.75],S5:["dash",.85,.72],S6:["shoot",.82,.25],S7:["slash",.5,.13],S8:["dash",.25,.65],S9:["slam",.22,.25],S10:["bash",.6,.45],S11:["slash",.5,.1],
  B0:["howl",.3,.3,.35],B1:["slam",.5,.25],B2:["lunge",.5,.12],B3:["slash",.5,.12],B4:["lunge",.55,.25],B5:["slam",.45,.15],B6:["cast",.18,.13],B7:["breath",.6,.36,.5],B8:["slam",.5,.15],B9:["lunge",.5,.2],B10:["slam",.5,.15,.4],B11:["cast",.25,.08,.4],B12:["howl",.5,.33],B13:["thrust",.75,.7],B14:["dash",.5,.15],B15:["slash",.5,.15]};
 function glowFor(o,col){o.gc=o.gc||{};if(!o.gc[col]){const c=document.createElement("canvas");c.width=75;c.height=100;const x=c.getContext("2d");x.drawImage(o.glow,0,0);x.globalCompositeOperation="source-in";x.fillStyle=col;x.fillRect(0,0,75,100);o.gc[col]=c}return o.gc[col]}
+// ===== Rigging: malla deformable por partes (cabeza, mandíbula, melena, pecho, patas) dibujada con WebGL =====
+const RIG={
+ S3:{ // Lobo sombra: se agacha, levanta la cabeza, abre el hocico y aúlla; las patas quedan plantadas
+  dur:2.6,mouth:[68,214],
+  w(x,y){const sm=(a,b,v)=>{v=(v-a)/(b-a);return v<0?0:v>1?1:v*v*(3-2*v)},el=(cx,cy,rx,ry,m)=>1-sm(1,1+m,Math.hypot((x-cx)/rx,(y-cy)/ry));
+   const head=el(68,165,64,74,.32)*(1-sm(226,246,y));
+   return {head,jaw:el(68,222,30,14,.6)*head,mane:(1-sm(60,135,y))*sm(60,105,x)*(1-head*.8),chest:1-sm(232,318,y),
+     legL:el(48,285,34,52,.4)*sm(230,262,y),legC:el(140,292,36,52,.4)*sm(236,268,y),hind:el(250,265,32,50,.4)*sm(222,252,y)}},
+  pose(a,t){const ez=x=>x<0?0:x>1?1:x*x*(3-2*x),seg=(x,a0,a1)=>ez((x-a0)/(a1-a0));
+   const on=a>=0,ant=on?seg(a,0,.16)*(1-seg(a,.16,.3)):0,up=on?seg(a,.18,.38)*(1-seg(a,.8,.98)):0,open=on?seg(a,.26,.4)*(1-seg(a,.76,.9)):0;
+   const trem=up*Math.sin(t*48)*.014,br=Math.sin(t*1.9),nod=Math.sin(t*1.15);
+   return [ // [peso, pivote x, pivote y, ángulo, tx, ty, sx, sy] — se aplican del más interno al más externo
+    ["jaw",68,206,0,0,4*open,1,1+.75*open],
+    ["head",118,170,.52*up-.13*ant+trem+.035*nod,-2*up,-5*up+3*ant,1,1-.08*up],
+    ["mane",130,135,.025*Math.sin(t*2.3)-.06*up+.025*up*Math.sin(t*21),0,-2*up,1,1+.04*up],
+    ["legL",50,250,-.06*ant+.02*up,0,0,1,1],["legC",138,256,.05*ant-.02*up,0,0,1,1],["hind",225,225,.04*ant-.03*up,0,0,1,1],
+    ["chest",205,262,.075*up-.035*ant,0,7*ant-7*up+1.4*br,1,1+.012*br]]}
+ }
+};
+const RIGX={gl:null,ok:null};
+function rigOK(){if(RIGX.ok!==null)return RIGX.ok;try{const cv=document.createElement("canvas");cv.width=300;cv.height=400;
+  const gl=cv.getContext("webgl",{premultipliedAlpha:true,preserveDrawingBuffer:true,alpha:true,antialias:true});if(!gl)return RIGX.ok=false;
+  const sh=(ty,src)=>{const s=gl.createShader(ty);gl.shaderSource(s,src);gl.compileShader(s);return s},pr=gl.createProgram();
+  gl.attachShader(pr,sh(gl.VERTEX_SHADER,"attribute vec2 p;attribute vec2 u;varying vec2 v;void main(){v=u;gl_Position=vec4(p.x/150.0-1.0,1.0-p.y/200.0,0.0,1.0);}"));
+  gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,"precision mediump float;varying vec2 v;uniform sampler2D s;void main(){gl_FragColor=texture2D(s,v);}"));
+  gl.linkProgram(pr);if(!gl.getProgramParameter(pr,gl.LINK_STATUS))return RIGX.ok=false;gl.useProgram(pr);
+  const NX=21,NY=28,uv=new Float32Array(NX*NY*2),idx=[];for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){uv[(j*NX+i)*2]=i/(NX-1);uv[(j*NX+i)*2+1]=j/(NY-1)}
+  for(let j=0;j<NY-1;j++)for(let i=0;i<NX-1;i++){const k=j*NX+i;idx.push(k,k+1,k+NX,k+1,k+NX+1,k+NX)}
+  const ub=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,ub);gl.bufferData(gl.ARRAY_BUFFER,uv,gl.STATIC_DRAW);const ul=gl.getAttribLocation(pr,"u");gl.enableVertexAttribArray(ul);gl.vertexAttribPointer(ul,2,gl.FLOAT,false,0,0);
+  const pb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,pb);const pl=gl.getAttribLocation(pr,"p");gl.enableVertexAttribArray(pl);gl.vertexAttribPointer(pl,2,gl.FLOAT,false,0,0);
+  const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
+  gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);
+  Object.assign(RIGX,{gl,cv,pb,NX,NY,ni:idx.length,pos:new Float32Array(NX*NY*2)});return RIGX.ok=true}catch(e){return RIGX.ok=false}}
+function rigDeform(R,W,P,x,y){for(const q of P){const w=W[q[0]];if(!w)continue;let dx=(x-q[1])*(1+(q[6]-1)*w),dy=(y-q[2])*(1+(q[7]-1)*w);const an=q[3]*w,c=Math.cos(an),s=Math.sin(an);x=q[1]+dx*c-dy*s+q[4]*w;y=q[2]+dx*s+dy*c+q[5]*w}return [x,y]}
+function rigDraw(src,key,a,t,store){const R=RIG[key];if(!R||!src.ch||!rigOK())return null;const X=RIGX,gl=X.gl;
+  if(!src.tex){src.tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,src.tex);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src.ch);
+   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+   src.rw=[];for(let j=0;j<X.NY;j++)for(let i=0;i<X.NX;i++)src.rw.push(R.w(i*300/(X.NX-1),j*400/(X.NY-1)))}
+  const P=R.pose(a,t);for(let j=0,n=0;j<X.NY;j++)for(let i=0;i<X.NX;i++,n++){const r=rigDeform(R,src.rw[n],P,i*300/(X.NX-1),j*400/(X.NY-1));X.pos[n*2]=r[0];X.pos[n*2+1]=r[1]}
+  gl.viewport(0,0,300,400);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.bindTexture(gl.TEXTURE_2D,src.tex);gl.bindBuffer(gl.ARRAY_BUFFER,X.pb);gl.bufferData(gl.ARRAY_BUFFER,X.pos,gl.DYNAMIC_DRAW);
+  gl.drawElements(gl.TRIANGLES,X.ni,gl.UNSIGNED_SHORT,0);
+  if(!store.rc){store.rc=document.createElement("canvas");store.rc.width=300;store.rc.height=400;store.rs=document.createElement("canvas");store.rs.width=30;store.rs.height=40;store.rg=document.createElement("canvas");store.rg.width=75;store.rg.height=100}
+  const c=store.rc.getContext("2d");c.clearRect(0,0,300,400);c.drawImage(X.cv,0,0);
+  const mw=R.mouth,m=rigDeform(R,R.w(mw[0],mw[1]),P,mw[0],mw[1]);return {cv:store.rc,mouth:m}}
+function rigGlow(store,col){const s=store.rs.getContext("2d");s.globalCompositeOperation="source-over";s.clearRect(0,0,30,40);s.drawImage(store.rc,0,0,30,40);s.globalCompositeOperation="source-in";s.fillStyle=col;s.fillRect(0,0,30,40);
+  const g=store.rg.getContext("2d");g.clearRect(0,0,75,100);g.imageSmoothingQuality="high";g.drawImage(store.rs,0,0,75,100);return store.rg}
 function drawArt(ctx,spec,t,store,alpha){
   ctx.clearRect(0,0,200,240);const col=spec.col||"#9b6bff",boss=!!spec.boss,idx=spec.idx||0,src=artSrc(boss?"B":"S",idx);
   const A=alpha==null?1:alpha;ctx.save();ctx.globalAlpha=A;
@@ -820,7 +866,7 @@ function drawArt(ctx,spec,t,store,alpha){
   if(src.n===2){
     // Movimiento por personaje: cada uno tiene su ataque (tajo, estocada, aullido, golpe al suelo, conjuro, aliento...)
     const MV=MOVES[(boss?"B":"S")+idx]||["slash",.5,.2],type=MV[0],fx=MV[1],fy=MV[2],dir=fx<.5?-1:1,rk=MV[3]==null?1:MV[3];
-    const per=boss?5.4:6.6,dur=1.9,tt=((t+idx*1.7)%per),a=tt<dur?tt/dur:-1;
+    const RK=(boss?"B":"S")+idx,RG=RIG[RK]&&src.ch&&rigOK()?RIG[RK]:null,per=boss?5.4:6.6,dur=RG?RG.dur:1.9,tt=((t+idx*1.7)%per),a=tt<dur?tt/dur:-1;
     const ez=x=>x<0?0:x>1?1:x*x*(3-2*x),seg=(x,a0,a1)=>ez((x-a0)/(a1-a0)),bump=(x,a0,a1)=>x<a0||x>a1?0:Math.sin((x-a0)/(a1-a0)*Math.PI);
     const br=Math.sin(t*1.9+idx),idle=Math.sin(t*1.15+idx*.7);
     let rot=idle*.012,yaw=0,zoom=1,tx=0,ty=0,sy=1+.012*br,shake=0,trail=0,glow=0;
@@ -829,6 +875,7 @@ function drawArt(ctx,spec,t,store,alpha){
       if(type==="slash"){rot+=-.13*wind+.16*hit;yaw=.55*wind-.25*hit;zoom+= .13*hit;ty+=6*hit;trail=hit;glow=imp;fxq.push(["arc",imp,a])}
       else if(type==="thrust"){tx+=-10*wind+6*hit;yaw=.4*wind;zoom+=.18*hit;ty+=8*hit;sy-=.03*wind;trail=hit;glow=imp;fxq.push(["flash",imp])}
       else if(type==="bash"){sy-=.05*wind;ty+=4*wind;zoom+=.2*hit;ty+=10*hit;shake=imp*4;glow=imp;fxq.push(["ring",imp,a])}
+      else if(type==="howl"&&RG){shake=bump(a,.4,.8)*1.1;glow=bump(a,.3,.9);zoom+=.025*bump(a,.2,.9);fxq.push(["waves",bump(a,.32,.9),a],["orb",bump(a,.34,.8)*.28])}
       else if(type==="howl"){rot+=-dir*.16*rk*seg(a,0,.3)*(1-seg(a,.8,1));sy+=.05*bump(a,.1,.9);shake=bump(a,.3,.85)*1.6;glow=bump(a,.3,.9);fxq.push(["waves",bump(a,.25,.95),a])}
       else if(type==="slam"){ty+=-14*wind;sy+=.05*wind;const dn=seg(a,.36,.44)*(1-seg(a,.6,.95));ty+=6*dn;sy-=.07*dn;zoom+=.06*dn;shake=bump(a,.4,.75)*6;glow=bump(a,.4,.7);fxq.push(["quake",bump(a,.4,.95),a])}
       else if(type==="dash"){const d=Math.sin(a*Math.PI*2);tx+=-26*d*(1-seg(a,.7,1));yaw=.35*Math.abs(d);trail=bump(a,.1,.8);zoom+=.08*bump(a,.4,.7);glow=bump(a,.45,.65);fxq.push(["glint",bump(a,.45,.7)])}
@@ -840,17 +887,18 @@ function drawArt(ctx,spec,t,store,alpha){
     if(shake)shake=(Math.random()-.5)*shake;
     const dw=180,dh=240,yb=239;
     const place=(c)=>{c.translate(100+tx+shake,yb+ty);c.rotate(rot);c.scale(zoom*Math.cos(yaw*.9)*(1+.05*Math.abs(Math.sin(yaw))),zoom*sy);c.transform(1,0,-idle*.02,1,0,0)};
-    const P=[-dw/2+fx*dw,-dh+fy*dh];
+    let P=[-dw/2+fx*dw,-dh+fy*dh];
+    let CH=src.ch,GF=c=>glowFor(src,c);if(RG){const r=rigDraw(src,RK,a,t,store);if(r){CH=r.cv;GF=c=>rigGlow(store,c);P=[-dw/2+r.mouth[0]*dw/300,-dh+r.mouth[1]*dh/400]}}
     // sombra en el piso (se agranda cuando se acerca a la cámara)
     ctx.save();ctx.globalAlpha=A*.5;ctx.fillStyle="#000";ctx.beginPath();ctx.ellipse(100+tx,237,62*zoom,7*zoom,0,0,Math.PI*2);ctx.fill();ctx.restore();
     // estelas (imágenes residuales del movimiento rápido)
-    if(trail>.05){for(let k=3;k>=1;k--){ctx.save();ctx.globalAlpha=A*trail*.16*(4-k)/3;ctx.globalCompositeOperation="lighter";ctx.translate(-tx*.35*k-(rot*60)*k*.4,0);place(ctx);ctx.drawImage(glowFor(src,col),-dw/2,-dh,dw,dh);ctx.restore()}}
+    if(trail>.05){for(let k=3;k>=1;k--){ctx.save();ctx.globalAlpha=A*trail*.16*(4-k)/3;ctx.globalCompositeOperation="lighter";ctx.translate(-tx*.35*k-(rot*60)*k*.4,0);place(ctx);ctx.drawImage(GF(col),-dw/2,-dh,dw,dh);ctx.restore()}}
     // aura
-    ctx.save();ctx.globalCompositeOperation="lighter";ctx.globalAlpha=A*(.26+.2*pulse+.45*glow);place(ctx);ctx.drawImage(glowFor(src,col),-dw/2-8,-dh-6,dw+16,dh+10);ctx.restore();
+    ctx.save();ctx.globalCompositeOperation="lighter";ctx.globalAlpha=A*(.26+.2*pulse+.45*glow);place(ctx);ctx.drawImage(GF(col),-dw/2-8,-dh-6,dw+16,dh+10);ctx.restore();
     // personaje
-    ctx.save();place(ctx);ctx.drawImage(src.ch,-dw/2,-dh,dw,dh);
+    ctx.save();place(ctx);ctx.drawImage(CH,-dw/2,-dh,dw,dh);
     // luz lateral que da volumen al girar
-    if(Math.abs(yaw)>.05||glow>.05){ctx.globalCompositeOperation="lighter";ctx.globalAlpha=A*Math.min(.16,Math.abs(yaw)*.25+glow*.12);ctx.drawImage(glowFor(src,"#ffffff"),-dw/2,-dh,dw,dh)}
+    if(!RG&&(Math.abs(yaw)>.05||glow>.05)){ctx.globalCompositeOperation="lighter";ctx.globalAlpha=A*Math.min(.16,Math.abs(yaw)*.25+glow*.12);ctx.drawImage(glowFor(src,"#ffffff"),-dw/2,-dh,dw,dh)}
     ctx.restore();
     // efectos del ataque
     fxq.forEach(f=>{const k=f[1];if(k<=.01)return;ctx.save();ctx.globalCompositeOperation="lighter";ctx.globalAlpha=A*Math.min(1,k*1.2);
