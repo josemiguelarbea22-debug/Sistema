@@ -351,7 +351,7 @@ form.m input{font:inherit;font-family:var(--f-mono);padding:8px;background:var(-
       <div class="win-head"><span class="sys-label">Cuenta de Google</span></div>
       <p class="note" id="gsStatus" style="margin:0 0 10px">Todavía no conectas tu cuenta. Tu progreso se guarda en este teléfono.</p>
       <button class="btn" id="gsBtn" type="button">Entrar con Google</button>
-      <p class="note" style="margin:8px 0 0;opacity:.7">Versión de la app: 7</p>
+      <p class="note" style="margin:8px 0 0;opacity:.7">Versión de la app: 8</p>
       <p class="note" style="margin:10px 0 0">La app solo puede editar tus eventos del calendario y una carpeta oculta de Drive solo para ella. No ve tus correos ni tus otros archivos. Puedes quitar el permiso cuando quieras en tu cuenta de Google, en Seguridad, Conexiones con apps de terceros.</p>
     </section>
     <section class="win">
@@ -828,16 +828,30 @@ const RIG={
     ["mane",130,135,.025*Math.sin(t*2.3)-.06*up+.025*up*Math.sin(t*21),0,-2*up,1,1+.04*up],
     ["legL",50,250,-.06*ant+.02*up,0,0,1,1],["legC",138,256,.05*ant-.02*up,0,0,1,1],["hind",225,225,.04*ant-.03*up,0,0,1,1],
     ["chest",205,262,.075*up-.035*ant,0,7*ant-7*up+1.4*br,1,1+.012*br]]}
+ },
+ S0:{ // Guerrero (Garra de Hierro): levanta la espada con ambas manos y lanza un tajo; cabeza y torso acompañan, piernas plantadas
+  dur:2.2,mouth:[262,368],
+  w(x,y){const sm=(a,b,v)=>{v=(v-a)/(b-a);return v<0?0:v>1?1:v*v*(3-2*v)},el=(cx,cy,rx,ry,m)=>1-sm(1,1+m,Math.hypot((x-cx)/rx,(y-cy)/ry));
+   const ax=100,ay=195,bx=272,by=378,vx=bx-ax,vy=by-ay,tt=Math.max(0,Math.min(1,((x-ax)*vx+(y-ay)*vy)/(vx*vx+vy*vy))),d=Math.hypot(x-ax-tt*vx,y-ay-tt*vy);
+   const blade=(1-sm(8,36,d))*sm(-.05,.12,tt),hands=el(112,205,34,30,.5),arms=el(105,160,40,60,.35)*.55;
+   const sword=Math.max(blade,hands,arms);
+   return {sword,head:el(150,48,42,48,.4),chest:1-sm(215,300,y),fl:(1-sm(40,110,y))*(1-el(150,48,42,48,.4))}},
+  pose(a,t){const ez=x=>x<0?0:x>1?1:x*x*(3-2*x),seg=(x,a0,a1)=>ez((x-a0)/(a1-a0));const on=a>=0;
+   const wind=on?seg(a,0,.34)*(1-seg(a,.38,.5)):0,hit=on?seg(a,.38,.5)*(1-seg(a,.62,.95)):0,br=Math.sin(t*1.9),idl=Math.sin(t*1.15);
+   return [["sword",122,188,-.34*wind+.2*hit+.015*idl,0,-4*wind+3*hit,1,1],
+    ["head",150,85,-.06*wind+.05*hit+.02*idl,0,0,1,1],
+    ["fl",150,95,.035*Math.sin(t*2.6)+.03*Math.sin(t*7)*(wind+hit),0,0,1,1],
+    ["chest",160,290,-.05*wind+.06*hit,0,3*hit-2*wind+1.2*br,1,1+.01*br]]}
  }
 };
 const RIGX={gl:null,ok:null};
-function rigOK(){if(RIGX.ok!==null)return RIGX.ok;try{const cv=document.createElement("canvas");cv.width=300;cv.height=400;
+function rigOK(){if(RIGX.ok!==null)return RIGX.ok;try{const cv=document.createElement("canvas");cv.width=380;cv.height=480;
   const gl=cv.getContext("webgl",{premultipliedAlpha:true,preserveDrawingBuffer:true,alpha:true,antialias:true});if(!gl)return RIGX.ok=false;
   const sh=(ty,src)=>{const s=gl.createShader(ty);gl.shaderSource(s,src);gl.compileShader(s);return s},pr=gl.createProgram();
-  gl.attachShader(pr,sh(gl.VERTEX_SHADER,"attribute vec2 p;attribute vec2 u;varying vec2 v;void main(){v=u;gl_Position=vec4(p.x/150.0-1.0,1.0-p.y/200.0,0.0,1.0);}"));
+  gl.attachShader(pr,sh(gl.VERTEX_SHADER,"attribute vec2 p;attribute vec2 u;varying vec2 v;void main(){v=u;gl_Position=vec4((p.x+40.0)/190.0-1.0,1.0-(p.y+40.0)/240.0,0.0,1.0);}"));
   gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,"precision mediump float;varying vec2 v;uniform sampler2D s;void main(){gl_FragColor=texture2D(s,v);}"));
   gl.linkProgram(pr);if(!gl.getProgramParameter(pr,gl.LINK_STATUS))return RIGX.ok=false;gl.useProgram(pr);
-  const NX=21,NY=28,uv=new Float32Array(NX*NY*2),idx=[];for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){uv[(j*NX+i)*2]=i/(NX-1);uv[(j*NX+i)*2+1]=j/(NY-1)}
+  const NX=33,NY=43,uv=new Float32Array(NX*NY*2),idx=[];for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){uv[(j*NX+i)*2]=i/(NX-1);uv[(j*NX+i)*2+1]=j/(NY-1)}
   for(let j=0;j<NY-1;j++)for(let i=0;i<NX-1;i++){const k=j*NX+i;idx.push(k,k+1,k+NX,k+1,k+NX+1,k+NX)}
   const ub=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,ub);gl.bufferData(gl.ARRAY_BUFFER,uv,gl.STATIC_DRAW);const ul=gl.getAttribLocation(pr,"u");gl.enableVertexAttribArray(ul);gl.vertexAttribPointer(ul,2,gl.FLOAT,false,0,0);
   const pb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,pb);const pl=gl.getAttribLocation(pr,"p");gl.enableVertexAttribArray(pl);gl.vertexAttribPointer(pl,2,gl.FLOAT,false,0,0);
@@ -850,13 +864,13 @@ function rigDraw(src,key,a,t,store){const R=RIG[key];if(!R||!src.ch||!rigOK())re
    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
    src.rw=[];for(let j=0;j<X.NY;j++)for(let i=0;i<X.NX;i++)src.rw.push(R.w(i*300/(X.NX-1),j*400/(X.NY-1)))}
   const P=R.pose(a,t);for(let j=0,n=0;j<X.NY;j++)for(let i=0;i<X.NX;i++,n++){const r=rigDeform(R,src.rw[n],P,i*300/(X.NX-1),j*400/(X.NY-1));X.pos[n*2]=r[0];X.pos[n*2+1]=r[1]}
-  gl.viewport(0,0,300,400);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.bindTexture(gl.TEXTURE_2D,src.tex);gl.bindBuffer(gl.ARRAY_BUFFER,X.pb);gl.bufferData(gl.ARRAY_BUFFER,X.pos,gl.DYNAMIC_DRAW);
+  gl.viewport(0,0,380,480);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.bindTexture(gl.TEXTURE_2D,src.tex);gl.bindBuffer(gl.ARRAY_BUFFER,X.pb);gl.bufferData(gl.ARRAY_BUFFER,X.pos,gl.DYNAMIC_DRAW);
   gl.drawElements(gl.TRIANGLES,X.ni,gl.UNSIGNED_SHORT,0);
-  if(!store.rc){store.rc=document.createElement("canvas");store.rc.width=300;store.rc.height=400;store.rs=document.createElement("canvas");store.rs.width=30;store.rs.height=40;store.rg=document.createElement("canvas");store.rg.width=75;store.rg.height=100}
-  const c=store.rc.getContext("2d");c.clearRect(0,0,300,400);c.drawImage(X.cv,0,0);
+  if(!store.rc){store.rc=document.createElement("canvas");store.rc.width=380;store.rc.height=480;store.rs=document.createElement("canvas");store.rs.width=38;store.rs.height=48;store.rg=document.createElement("canvas");store.rg.width=95;store.rg.height=120}
+  const c=store.rc.getContext("2d");c.clearRect(0,0,380,480);c.drawImage(X.cv,0,0);
   const mw=R.mouth,m=rigDeform(R,R.w(mw[0],mw[1]),P,mw[0],mw[1]);return {cv:store.rc,mouth:m}}
-function rigGlow(store,col){const s=store.rs.getContext("2d");s.globalCompositeOperation="source-over";s.clearRect(0,0,30,40);s.drawImage(store.rc,0,0,30,40);s.globalCompositeOperation="source-in";s.fillStyle=col;s.fillRect(0,0,30,40);
-  const g=store.rg.getContext("2d");g.clearRect(0,0,75,100);g.imageSmoothingQuality="high";g.drawImage(store.rs,0,0,75,100);return store.rg}
+function rigGlow(store,col){const s=store.rs.getContext("2d");s.globalCompositeOperation="source-over";s.clearRect(0,0,38,48);s.drawImage(store.rc,0,0,38,48);s.globalCompositeOperation="source-in";s.fillStyle=col;s.fillRect(0,0,38,48);
+  const g=store.rg.getContext("2d");g.clearRect(0,0,95,120);g.imageSmoothingQuality="high";g.drawImage(store.rs,0,0,95,120);return store.rg}
 function drawArt(ctx,spec,t,store,alpha){
   ctx.clearRect(0,0,200,240);const col=spec.col||"#9b6bff",boss=!!spec.boss,idx=spec.idx||0,src=artSrc(boss?"B":"S",idx);
   const A=alpha==null?1:alpha;ctx.save();ctx.globalAlpha=A;
@@ -872,7 +886,8 @@ function drawArt(ctx,spec,t,store,alpha){
     let rot=idle*.012,yaw=0,zoom=1,tx=0,ty=0,sy=1+.012*br,shake=0,trail=0,glow=0;
     const fxq=[];
     if(a>=0){const wind=seg(a,0,.32)*(1-seg(a,.36,.46)),hit=seg(a,.36,.46)*(1-seg(a,.62,.95)),imp=bump(a,.38,.7);
-      if(type==="slash"){rot+=-.13*wind+.16*hit;yaw=.55*wind-.25*hit;zoom+= .13*hit;ty+=6*hit;trail=hit;glow=imp;fxq.push(["arc",imp,a])}
+      if(type==="slash"&&RG){rot+=-.05*wind+.06*hit;yaw=.18*wind-.08*hit;zoom+=.07*hit;ty+=3*hit;trail=hit*.7;glow=imp;fxq.push(["arc",imp,a])}
+      else if(type==="slash"){rot+=-.13*wind+.16*hit;yaw=.55*wind-.25*hit;zoom+= .13*hit;ty+=6*hit;trail=hit;glow=imp;fxq.push(["arc",imp,a])}
       else if(type==="thrust"){tx+=-10*wind+6*hit;yaw=.4*wind;zoom+=.18*hit;ty+=8*hit;sy-=.03*wind;trail=hit;glow=imp;fxq.push(["flash",imp])}
       else if(type==="bash"){sy-=.05*wind;ty+=4*wind;zoom+=.2*hit;ty+=10*hit;shake=imp*4;glow=imp;fxq.push(["ring",imp,a])}
       else if(type==="howl"&&RG){shake=bump(a,.4,.8)*1.1;glow=bump(a,.3,.9);zoom+=.025*bump(a,.2,.9);fxq.push(["waves",bump(a,.32,.9),a],["orb",bump(a,.34,.8)*.28])}
@@ -888,15 +903,15 @@ function drawArt(ctx,spec,t,store,alpha){
     const dw=180,dh=240,yb=239;
     const place=(c)=>{c.translate(100+tx+shake,yb+ty);c.rotate(rot);c.scale(zoom*Math.cos(yaw*.9)*(1+.05*Math.abs(Math.sin(yaw))),zoom*sy);c.transform(1,0,-idle*.02,1,0,0)};
     let P=[-dw/2+fx*dw,-dh+fy*dh];
-    let CH=src.ch,GF=c=>glowFor(src,c);if(RG){const r=rigDraw(src,RK,a,t,store);if(r){CH=r.cv;GF=c=>rigGlow(store,c);P=[-dw/2+r.mouth[0]*dw/300,-dh+r.mouth[1]*dh/400]}}
+    let CH=src.ch,GF=c=>glowFor(src,c),RR=(ex,ey)=>[-dw/2-ex,-dh-ey,dw+2*ex,dh+ey+(ey?4:0)];if(RG){const r=rigDraw(src,RK,a,t,store);if(r){CH=r.cv;GF=c=>rigGlow(store,c);const kx=dw/300,ky=dh/400;RR=(ex,ey)=>[-dw/2-40*kx-ex,-dh-40*ky-ey,380*kx+2*ex,480*ky+ey+(ey?4:0)];P=[-dw/2+r.mouth[0]*kx,-dh+r.mouth[1]*ky]}}
     // sombra en el piso (se agranda cuando se acerca a la cámara)
     ctx.save();ctx.globalAlpha=A*.5;ctx.fillStyle="#000";ctx.beginPath();ctx.ellipse(100+tx,237,62*zoom,7*zoom,0,0,Math.PI*2);ctx.fill();ctx.restore();
     // estelas (imágenes residuales del movimiento rápido)
-    if(trail>.05){for(let k=3;k>=1;k--){ctx.save();ctx.globalAlpha=A*trail*.16*(4-k)/3;ctx.globalCompositeOperation="lighter";ctx.translate(-tx*.35*k-(rot*60)*k*.4,0);place(ctx);ctx.drawImage(GF(col),-dw/2,-dh,dw,dh);ctx.restore()}}
+    if(trail>.05){for(let k=3;k>=1;k--){ctx.save();ctx.globalAlpha=A*trail*.16*(4-k)/3;ctx.globalCompositeOperation="lighter";ctx.translate(-tx*.35*k-(rot*60)*k*.4,0);place(ctx);ctx.drawImage(GF(col),...RR(0,0));ctx.restore()}}
     // aura
-    ctx.save();ctx.globalCompositeOperation="lighter";ctx.globalAlpha=A*(.26+.2*pulse+.45*glow);place(ctx);ctx.drawImage(GF(col),-dw/2-8,-dh-6,dw+16,dh+10);ctx.restore();
+    ctx.save();ctx.globalCompositeOperation="lighter";ctx.globalAlpha=A*(.26+.2*pulse+.45*glow);place(ctx);ctx.drawImage(GF(col),...RR(8,6));ctx.restore();
     // personaje
-    ctx.save();place(ctx);ctx.drawImage(CH,-dw/2,-dh,dw,dh);
+    ctx.save();place(ctx);ctx.drawImage(CH,...RR(0,0));
     // luz lateral que da volumen al girar
     if(!RG&&(Math.abs(yaw)>.05||glow>.05)){ctx.globalCompositeOperation="lighter";ctx.globalAlpha=A*Math.min(.16,Math.abs(yaw)*.25+glow*.12);ctx.drawImage(glowFor(src,"#ffffff"),-dw/2,-dh,dw,dh)}
     ctx.restore();
